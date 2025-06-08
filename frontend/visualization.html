@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>网络攻击检测系统 - 可视化图表</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 20px;
+      background: #f4f4f4;
+      padding-right: 240px; /* 为侧边导航留出空间 */
+    }
+    h2 { text-align: center; }
+    .chart-container { width: 80%; margin: 20px auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .sidebar {
+      position: fixed;
+      top: 100px;
+      right: 20px;
+      width: 200px;
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .sidebar li {
+      margin-bottom: 8px;
+    }
+    .sidebar a {
+      color: #007bff;
+      text-decoration: none;
+    }
+    .sidebar a:hover {
+      text-decoration: underline;
+    }
+    .sidebar-title {
+      font-size: 18px;
+      margin-bottom: 12px;
+      color: #333;
+      text-align: center;
+      border-bottom: 2px solid #007bff;
+      padding-bottom: 6px;
+    }
+    .sidebar a.back-to-top {
+      display: block;
+      text-align: center;
+      margin: 0 0 12px;
+      background-color: #007bff;
+      color: #fff !important;
+      padding: 6px 0;
+      border-radius: 4px;
+      text-decoration: none;
+    }
+    .sidebar a.back-to-top:hover {
+      background-color: #0056b3;
+      color: #fff !important;
+    }
+  </style>
+</head>
+<body>
+  <h2 id="top">网络攻击检测系统可视化</h2>
+  <div class="sidebar">
+    <h3 class="sidebar-title">图表导航</h3>
+    <ul>
+      <li><a href="#top" class="back-to-top">回到顶端</a></li>
+      <li><a href="#attackChartContainer">攻击类型分布图</a></li>
+      <li><a href="#packetChartContainer">每分钟包数趋势图</a></li>
+      <li><a href="#sessionChartContainer">会话包数与字节数时间序列图</a></li>
+      <li><a href="#ipChartContainer">IP 热度排名图</a></li>
+      <li><a href="#protocolChartContainer">协议分布饼图</a></li>
+      <li><a href="#sessionTrendsChartContainer">会话统计折线图</a></li>
+      <li><a href="#packetLengthChartContainer">包长分布直方图</a></li>
+      <li><a href="#tcpFlagsHeatmapContainer">TCP 标志位热力图</a></li>
+      <li><a href="#httpStatusChartContainer">HTTP 状态码时间趋势图</a></li>
+      <li><a href="#methodChartContainer">HTTP 方法分布柱状图</a></li>
+    </ul>
+  </div>
+  <div class="chart-container">
+    <label for="select-start-date">开始日期：</label>
+    <input type="date" id="select-start-date" value="2025-05-08">
+    <label for="select-start-hour">开始小时：</label>
+    <select id="select-start-hour">
+      <!-- options 00-23 -->
+      <option value="00">00</option>
+      <option value="01">01</option>
+      <option value="02">02</option>
+      <option value="03">03</option>
+      <option value="04">04</option>
+      <option value="05">05</option>
+      <option value="06">06</option>
+      <option value="07">07</option>
+      <option value="08">08</option>
+      <option value="09">09</option>
+      <option value="10">10</option>
+      <option value="11">11</option>
+      <option value="12">12</option>
+      <option value="13">13</option>
+      <option value="14">14</option>
+      <option value="15">15</option>
+      <option value="16">16</option>
+      <option value="17">17</option>
+      <option value="18">18</option>
+      <option value="19">19</option>
+      <option value="20">20</option>
+      <option value="21">21</option>
+      <option value="22">22</option>
+      <option value="23">23</option>
+    </select>
+    <br>
+    <label for="select-end-date">结束日期：</label>
+    <input type="date" id="select-end-date" value="2025-05-08">
+    <label for="select-end-hour">结束小时：</label>
+    <select id="select-end-hour">
+      <!-- options 00-23 -->
+      <option value="00">00</option>
+      <option value="01">01</option>
+      <option value="02">02</option>
+      <option value="03">03</option>
+      <option value="04">04</option>
+      <option value="05">05</option>
+      <option value="06">06</option>
+      <option value="07">07</option>
+      <option value="08">08</option>
+      <option value="09">09</option>
+      <option value="10">10</option>
+      <option value="11">11</option>
+      <option value="12">12</option>
+      <option value="13">13</option>
+      <option value="14">14</option>
+      <option value="15">15</option>
+      <option value="16">16</option>
+      <option value="17">17</option>
+      <option value="18">18</option>
+      <option value="19">19</option>
+      <option value="20">20</option>
+      <option value="21">21</option>
+      <option value="22">22</option>
+      <option value="23">23</option>
+    </select>
+    <button id="btn-load">加载时间范围 CSV</button><span id="load-status" style="margin-left: 10px; font-weight: bold;"></span>
+    <button id="btn-render" style="margin-left: 20px;">生成图形</button><span id="render-status" style="margin-left: 10px; font-weight: bold;"></span>
+  </div>
+  <div class="chart-container" id="attackChartContainer">
+    <h3 style="text-align: center; margin-bottom: 10px;">攻击类型分布图</h3>
+    <canvas id="attackChart"></canvas>
+  </div>
+  <div class="chart-container" id="packetChartContainer">
+    <h3 style="text-align: center; margin-bottom: 10px;">每分钟包数趋势图</h3>
+    <canvas id="packetChart"></canvas>
+  </div>
+
+  <div class="chart-container" id="sessionChartContainer">
+    <h3 style="text-align: center; margin-bottom: 10px;">会话包数与字节数时间序列图</h3>
+    <canvas id="sessionChart"></canvas>
+  </div>
+
+  <div class="chart-container" id="ipChartContainer">
+    <h3 style="text-align: center; margin-bottom: 10px;">IP 热度排名图（Top10 源 IP）</h3>
+    <canvas id="ipChart"></canvas>
+  </div>
+  <div class="chart-container" id="protocolChartContainer">
+    <h3 style="text-align: center; margin-bottom: 10px;">协议分布饼图</h3>
+    <canvas id="protocolChart"></canvas>
+  </div>
+  <div class="chart-container" id="sessionTrendsChartContainer">
+    <h3 style="text-align: center; margin-bottom: 10px;">会话统计折线图</h3>
+    <canvas id="sessionTrendsChart"></canvas>
+  </div>
+  <div class="chart-container" id="packetLengthChartContainer">
+    <h3 style="text-align: center; margin-bottom: 10px;">包长分布直方图</h3>
+    <canvas id="packetLengthChart"></canvas>
+  </div>
+  <div class="chart-container" id="tcpFlagsHeatmapContainer">
+    <h3 style="text-align: center; margin-bottom: 10px;">TCP 标志位热力图</h3>
+    <canvas id="tcpFlagsHeatmap"></canvas>
+  </div>
+  <div class="chart-container" id="httpStatusChartContainer">
+    <h3 style="text-align: center; margin-bottom: 10px;">HTTP 状态码时间趋势图</h3>
+    <canvas id="httpStatusChart"></canvas>
+  </div>
+  <div class="chart-container" id="methodChartContainer">
+    <h3 style="text-align: center; margin-bottom: 10px;">HTTP 方法分布柱状图</h3>
+    <canvas id="methodChart"></canvas>
+  </div>
+
+  <script>
+    const MAX_HOURS = 200; // 最大加载小时数，超过则提示
+    const statusBox = document.getElementById('load-status');
+    const renderBox = document.getElementById('render-status');
+
+    // 计算用户选择的小时数
+    function getSelectedHours() {
+      const startDate = document.getElementById('select-start-date').value;
+      const startHour = document.getElementById('select-start-hour').value;
+      const endDate = document.getElementById('select-end-date').value;
+      const endHour = document.getElementById('select-end-hour').value;
+      const start = new Date(`${startDate}T${startHour}:00:00`);
+      const end = new Date(`${endDate}T${endHour}:00:00`);
+      return Math.floor((end - start) / (1000 * 3600)) + 1;
+    }
+
+    // 构建时间范围内的所有小时文件夹
+    function constructFolders() {
+      const startDate = document.getElementById('select-start-date').value.replace(/-/g,'');
+      const startHour = document.getElementById('select-start-hour').value;
+      const endDate = document.getElementById('select-end-date').value.replace(/-/g,'');
+      const endHour = document.getElementById('select-end-hour').value;
+      const start = new Date(`${startDate.substr(0,4)}-${startDate.substr(4,2)}-${startDate.substr(6,2)}T${startHour}:00:00`);
+      const end   = new Date(`${endDate.substr(0,4)}-${endDate.substr(4,2)}-${endDate.substr(6,2)}T${endHour}:00:00`);
+      const folders = [];
+      let current = new Date(start);
+      while (current <= end) {
+        const y = current.getFullYear();
+        const m = String(current.getMonth()+1).padStart(2,'0');
+        const d = String(current.getDate()).padStart(2,'0');
+        const h = String(current.getHours()).padStart(2,'0');
+        folders.push(`${y}${m}${d}_${h}`);
+        current.setHours(current.getHours()+1);
+      }
+      return folders;
+    }
+
+    // 动态检测每小时目录下的 traffic_0.csv 文件（仅检测该文件，忽略 404 警告）
+    async function detectCSVPaths(folders) {
+      const paths = [];
+      for (const folder of folders) {
+        const url = `/capture_file/${folder}/traffic_0.csv`;
+        try {
+          const res = await fetch(url, { method: 'HEAD' });
+          if (res.ok) {
+            paths.push(url);
+          }
+        } catch (e) {
+          // 忽略网络或 404 错误
+        }
+      }
+      return paths;
+    }
+
+    // 解析多种格式时间戳
+    function parseTimestamp(ts) {
+      ts = String(ts).trim();
+      // 支持 epoch 秒（含小数）的时间戳
+      if (/^\d+(\.\d+)?$/.test(ts)) {
+        return new Date(parseFloat(ts) * 1000);
+      }
+      // 支持 'YYYY-MM-DD HH:MM:SS(.micro)' 格式
+      const fullPattern = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
+      if (fullPattern.test(ts)) {
+        const [datePart, timePart] = ts.split(' ');
+        const [timeBase, micro] = timePart.split('.');
+        const ms = micro ? micro.slice(0,3).padEnd(3,'0') : '000';
+        const isoStr = `${datePart}T${timeBase}.${ms}`;
+        return new Date(isoStr);
+      }
+      const parts = ts.split(':');
+      if (parts.length !== 2) return new Date(NaN);
+      const minutes = parseInt(parts[0], 10);
+      const seconds = parseFloat(parts[1]);
+      if (isNaN(minutes) || isNaN(seconds)) return new Date(NaN);
+      const totalMs = minutes * 60000 + Math.round(seconds * 1000);
+      // 从零点开始计算
+      return new Date(totalMs);
+    }
+
+    // 解析 CSV 并构建图表
+
+
+    //每分钟包数趋势图
+    function buildPacketChart(data) {
+      const counts = {};
+      data.forEach((row, idx) => {
+        if (!row.timestamp) {
+          return;
+        }
+        const ts = row.timestamp;
+        const dt = parseTimestamp(ts);
+        if (isNaN(dt.getTime())) {
+          return;
+        }
+        // 使用 YYYY.MM.DD.HH.mm 格式
+        const yyyy = dt.getFullYear();
+        const mm = String(dt.getMonth()+1).padStart(2,'0');
+        const dd = String(dt.getDate()).padStart(2,'0');
+        const hh = String(dt.getHours()).padStart(2,'0');
+        const mi = String(dt.getMinutes()).padStart(2,'0');
+        const minuteLabel = `${yyyy}.${mm}.${dd}.${hh}.${mi}`;
+        counts[minuteLabel] = (counts[minuteLabel] || 0) + 1;
+      });
+      const labels = Object.keys(counts).sort();
+      const values = labels.map(t => counts[t]);
+      const maxTicks = 20;
+      const step = Math.ceil(labels.length / maxTicks) || 1;
+      new Chart(document.getElementById('packetChart'), {
+        type: 'line',
+        data: { labels, datasets: [{ label: '每分钟包数', data: values, fill: false, tension: 0.1 }] },
+        options: {
+          scales: {
+            x: {
+              display: true,
+              title: { display: true, text: '时间 (YYYY.MM.DD.HH.mm)' },
+              ticks: {
+                callback: function(val, index) {
+                  return index % step === 0 ? this.getLabelForValue(val) : '';
+                }
+              }
+            },
+            y: { display: true, title: { display: true, text: '包数' } }
+          }
+        }
+      });
+    }
+
+    //攻击类型饼图
+    function buildAttackChart(data) {
+      // 只保留以下攻击类型
+      const allowedTypes = [
+        "Normal",
+        "Botnet Ares", "FTP-Patator", "SSH-Patator", "DDoS",
+        "DoS Slowhttptest", "DoS Slowloris", "DoS GoldenEye", "DoS Hulk", "DoS Heartbleed",
+        "Infiltration", "PortScan", "Web Bruteforce", "Web Bruteforce Slow", "Web SQLi", "Web XSS"
+      ];
+      // 只提取 attack_type 列并过滤仅允许的类型
+      const types = data
+        .map(row => row.attack_type)
+        .filter(type => allowedTypes.includes(type));
+      // 统计每种攻击出现次数
+      const counts = types.reduce((acc, type) => {
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      }, {});
+
+      const labels = Object.keys(counts);
+      const values = labels.map(label => counts[label]);
+
+      new Chart(document.getElementById('attackChart'), {
+        type: 'pie',
+        data: { labels, datasets: [{ label: '攻击类型分布', data: values }] },
+        options: { responsive: true }
+      });
+    }
+
+    // 会话数量与流量时间序列图
+    function buildSessionChart(data) {
+      const pktCounts = {};
+      const byteCounts = {};
+      data.forEach((row, idx) => {
+        const ts = row.timestamp;
+        const dt = parseTimestamp(ts);
+        if (isNaN(dt.getTime())) {
+          return;
+        }
+        // 使用 YYYY.MM.DD.HH.mm 格式
+        const yyyy = dt.getFullYear();
+        const mm = String(dt.getMonth()+1).padStart(2,'0');
+        const dd = String(dt.getDate()).padStart(2,'0');
+        const hh = String(dt.getHours()).padStart(2,'0');
+        const mi = String(dt.getMinutes()).padStart(2,'0');
+        const label = `${yyyy}.${mm}.${dd}.${hh}.${mi}`;
+        const pkt = Number(row.sess_pkt_count) || 0;
+        const byt = Number(row.sess_byte_count) || 0;
+        pktCounts[label] = (pktCounts[label] || 0) + pkt;
+        byteCounts[label] = (byteCounts[label] || 0) + byt;
+      });
+      const labels = Object.keys(pktCounts).sort();
+      const pktValues = labels.map(l => pktCounts[l]);
+      const byteValues = labels.map(l => byteCounts[l]);
+      const maxTicks = 20;
+      const step = Math.ceil(labels.length / maxTicks) || 1;
+      new Chart(document.getElementById('sessionChart'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: '会话包数', data: pktValues, fill: false, tension: 0.1, yAxisID: 'y' },
+            { label: '会话字节数', data: byteValues, fill: false, tension: 0.1, yAxisID: 'y1' }
+          ]
+        },
+        options: {
+          scales: {
+            x: {
+              display: true,
+              title: { display: true, text: '时间 (YYYY.MM.DD.HH.mm)' },
+              ticks: {
+                callback: function(val, index) {
+                  return index % step === 0 ? this.getLabelForValue(val) : '';
+                }
+              }
+            },
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+              title: { display: true, text: '包数' }
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              title: { display: true, text: '字节数' },
+              grid: { drawOnChartArea: false }
+            }
+          }
+        }
+      });
+    }
+
+    // IP 热度排名柱状图（Top10 源 IP：报文数 vs 字节量）
+    function buildIPBarChart(data) {
+      const pktMap = {};
+      const byteMap = {};
+      data.forEach((row) => {
+        const ip = row.src_ip;
+        // 排除本机回环地址
+        if (!ip || ip === '127.0.0.1') return;
+        pktMap[ip] = (pktMap[ip] || 0) + 1;
+        const blen = Number(row.packet_length) || 0;
+        byteMap[ip] = (byteMap[ip] || 0) + blen;
+      });
+      // 排序并取 Top10
+      const sortedIPs = Object.keys(pktMap).sort((a, b) => pktMap[b] - pktMap[a]).slice(0, 10);
+      const pktValues = sortedIPs.map(ip => pktMap[ip]);
+      const byteValues = sortedIPs.map(ip => byteMap[ip]);
+      new Chart(document.getElementById('ipChart'), {
+        type: 'bar',
+        data: {
+          labels: sortedIPs,
+          datasets: [
+            { label: '报文数', data: pktValues, yAxisID: 'y' },
+            { label: '字节量', data: byteValues, yAxisID: 'y1' }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              display: true,
+              title: { display: true, text: '源 IP' }
+            },
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+              title: { display: true, text: '报文数' }
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              title: { display: true, text: '字节量' },
+              grid: { drawOnChartArea: false }
+            }
+          }
+        }
+      });
+    }
+
+
+    // 协议分布饼图
+    function buildProtocolChart(data) {
+      // 只保留以下协议
+      const allowedProtos = ['ICMP', 'IGMP', 'TCP', 'UDP', 'GRE', 'ESP', 'AH', 'EIGRP', 'OSPF', 'SCTP'];
+      // 协议号到名称映射
+      const protoNames = {
+        '1': 'ICMP',
+        '2': 'IGMP',
+        '6': 'TCP',
+        '17': 'UDP',
+        '47': 'GRE',
+        '50': 'ESP',
+        '51': 'AH',
+        '88': 'EIGRP',
+        '89': 'OSPF',
+        '132': 'SCTP'
+      };
+      const counts = {};
+      data.forEach(row => {
+        let prot = row.protocol;
+        if (prot === undefined || prot === null || prot === '') return;
+        // 若是数字协议号，映射为名称
+        prot = String(prot);
+        if (protoNames[prot]) prot = protoNames[prot];
+        if (!allowedProtos.includes(prot)) return;
+        counts[prot] = (counts[prot] || 0) + 1;
+      });
+      const labels = Object.keys(counts);
+      const values = labels.map(label => counts[label]);
+      new Chart(document.getElementById('protocolChart'), {
+        type: 'pie',
+        data: { labels, datasets: [{ label: '协议分布', data: values }] },
+        options: { responsive: true }
+      });
+    }
+
+    //包长分布直方图
+    function buildPacketLengthHistogram(data) {
+      const lengths = data
+        .map(r => Number(r.packet_length))
+        .filter(len => !isNaN(len));
+      if (!lengths.length) return;
+
+      const bins = 10;
+      // 使用循环计算，避免 ... 展开超大数组导致栈溢出
+      let min = Infinity;
+      let max = -Infinity;
+      for (const len of lengths) {
+        if (len < min) min = len;
+        if (len > max) max = len;
+      }
+
+      // ① 边界保护：所有包长相同或差值极小——直接画单柱
+      if (min === max || max - min < 1e-9) {
+        new Chart(document.getElementById('packetLengthChart'), {
+          type: 'bar',
+          data: {
+            labels: [`${min}`],
+            datasets: [{ label: '包长分布', data: [lengths.length] }]
+          },
+          options: {
+            scales: {
+              x: { title: { display: true, text: '包长(bytes)' } },
+              y: { title: { display: true, text: '数量' } }
+            }
+          }
+        });
+        return;
+      }
+      // ② 正常情况：计算分箱宽度并统计
+      const width = (max - min) / bins;
+      const counts = Array(bins).fill(0);
+
+      lengths.forEach(len => {
+        let i = Math.floor((len - min) / width);
+        // 强力兜底：任何越界都被收束到两端
+        if (i < 0) i = 0;
+        if (i >= bins) i = bins - 1;
+        counts[i]++;
+      });
+      // ③ 生成标签
+      const labels = counts.map((_, i) => {
+        const s = Math.round(min + i * width);
+        const e = Math.round(min + (i + 1) * width);
+        return `${s}-${e}`;
+      });
+      // ④ 绘图
+      new Chart(document.getElementById('packetLengthChart'), {
+        type: 'bar',
+        data: { labels, datasets: [{ label: '包长分布', data: counts }] },
+        options: {
+          scales: {
+            x: { title: { display: true, text: '包长范围(bytes)' } },
+            y: { title: { display: true, text: '数量' } }
+          }
+        }
+      });
+    }
+
+    // TCP 标志位热力图
+    function buildTCPFlagsHeatmap(data) {
+      // 只保留以下 TCP flags 组合（全写与简写）
+      const allowedFlags = [
+        'CWR','ECE','URG','ACK','PSH','RST','SYN','FIN',
+        'A','R','RA','S','SA','F','FA','AF','P','PA','U',
+        'UA','AU','FPA','C','E'
+      ];
+      // 统计每种 flags 组合的出现次数
+      const counts = {};
+      data.forEach(row => {
+        const flags = row.tcp_flags;
+        if (!flags || !allowedFlags.includes(flags)) return;
+        counts[flags] = (counts[flags] || 0) + 1;
+      });
+      // 按字母序或出现频次排序
+      const labels = Object.keys(counts).sort();
+      const values = labels.map(label => counts[label]);
+      // 生成一组颜色，透明度根据频次映射模拟“热度”
+      const maxCount = Math.max(...values, 1);
+      const bgColors = values.map(v => {
+        const alpha = Math.min(v / maxCount, 1);
+        return `rgba(255,99,132,${alpha})`;
+      });
+
+      new Chart(document.getElementById('tcpFlagsHeatmap'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: '出现次数',
+            data: values,
+            backgroundColor: bgColors
+          }]
+        },
+        options: {
+          indexAxis: 'y',  // 水平条形图
+          responsive: true,
+          scales: {
+            x: {
+              display: true,
+              title: { display: true, text: '次数' }
+            },
+            y: {
+              display: true,
+              title: { display: true, text: 'TCP flags 组合' }
+            }
+          }
+        }
+      });
+    }
+
+
+    // 会话统计折线图：会话数与平均包数、平均字节数
+    function buildSessionTrendsChart(data) {
+      const map = {};
+      data.forEach(row => {
+        const dt = parseTimestamp(row.timestamp);
+        if (isNaN(dt.getTime())) return;
+        const yyyy = dt.getFullYear();
+        const mm = String(dt.getMonth()+1).padStart(2,'0');
+        const dd = String(dt.getDate()).padStart(2,'0');
+        const hh = String(dt.getHours()).padStart(2,'0');
+        const mi = String(dt.getMinutes()).padStart(2,'0');
+        const label = `${yyyy}.${mm}.${dd}.${hh}.${mi}`;
+        if (!map[label]) {
+          map[label] = { sessions: new Set(), pktSum: 0, byteSum: 0 };
+        }
+        map[label].sessions.add(row.session_key);
+        map[label].pktSum += Number(row.sess_pkt_count) || 0;
+        map[label].byteSum += Number(row.sess_byte_count) || 0;
+      });
+      const labels = Object.keys(map).sort();
+      const sessionCounts = labels.map(l => map[l].sessions.size);
+      const avgPkts = labels.map(l => Math.round(map[l].pktSum / map[l].sessions.size));
+      const avgBytes = labels.map(l => Math.round(map[l].byteSum / map[l].sessions.size));
+      new Chart(document.getElementById('sessionTrendsChart'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { type: 'line', label: '会话数',    data: sessionCounts, fill: false, tension: 0.1, yAxisID: 'y' },
+            { type: 'bar',  label: '平均包数',  data: avgPkts,       yAxisID: 'y1' },
+            { type: 'bar',  label: '平均字节数', data: avgBytes,      yAxisID: 'y1' }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              display: true,
+              title: { display: true, text: '时间 (YYYY.MM.DD.HH.mm)' }
+            },
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+              title: { display: true, text: '会话数' }
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              title: { display: true, text: '平均包数/字节数' },
+              grid: { drawOnChartArea: false }
+            }
+          }
+        }
+      });
+    }
+
+    // HTTP 状态码时间趋势图
+    function buildHTTPStatusTrend(data) {
+      // 只保留以下 HTTP 状态码
+      const allowedStatuses = [
+        '100','101','102',
+        '200','201','202','203','204','205','206',
+        '300','301','302','303','304','307','308',
+        '400','401','402','403','404','405','406','407','408','409','410','411','412','413','414','415','416','417','418',
+        '500','501','502','503','504','505','506','507','508','510','511'
+      ];
+      const seriesMap = {};
+      data.forEach(row => {
+        const dt = parseTimestamp(row.timestamp);
+        if (isNaN(dt.getTime())) return;
+        const yyyy = dt.getFullYear(),
+              mm = String(dt.getMonth()+1).padStart(2,'0'),
+              dd = String(dt.getDate()).padStart(2,'0'),
+              hh = String(dt.getHours()).padStart(2,'0'),
+              mi = String(dt.getMinutes()).padStart(2,'0');
+        const label = `${yyyy}.${mm}.${dd}.${hh}.${mi}`;
+        const status = String(row.http_status || '未知');
+        if (!allowedStatuses.includes(status)) return;
+        seriesMap[label] = seriesMap[label] || {};
+        seriesMap[label][status] = (seriesMap[label][status] || 0) + 1;
+      });
+      // 状态码中文说明
+      const statusDescriptions = {
+        '100': '继续',
+        '101': '切换协议',
+        '102': '处理中',
+        '200': '成功',
+        '201': '已创建',
+        '202': '已接受',
+        '203': '非授权信息',
+        '204': '无内容',
+        '205': '重置内容',
+        '206': '部分内容',
+        '300': '多种选择',
+        '301': '永久重定向',
+        '302': '临时重定向',
+        '303': '查看其他位置',
+        '304': '未修改',
+        '307': '临时重定向',
+        '308': '永久重定向',
+        '400': '错误请求',
+        '401': '未授权',
+        '402': '需要付款',
+        '403': '禁止',
+        '404': '未找到',
+        '405': '方法禁用',
+        '406': '不接受',
+        '407': '需代理认证',
+        '408': '请求超时',
+        '409': '冲突',
+        '410': '已删除',
+        '411': '长度必需',
+        '412': '前提条件失败',
+        '413': '请求实体过大',
+        '414': 'URI 过长',
+        '415': '不支持的媒体类型',
+        '416': '请求范围不符合',
+        '417': '期望失败',
+        '418': '我是茶壶',
+        '500': '服务器内部错误',
+        '501': '未实现',
+        '502': '网关错误',
+        '503': '服务不可用',
+        '504': '网关超时',
+        '505': 'HTTP 版本不支持',
+        '506': '协商内容错误',
+        '507': '存储不足',
+        '508': '循环检测',
+        '510': '未扩展',
+        '511': '网络认证需要'
+      };
+      const labels = Object.keys(seriesMap).sort();
+      const allStatuses = Array.from(new Set(labels.flatMap(l => Object.keys(seriesMap[l])))).sort();
+      const datasets = allStatuses.map(status => ({
+        label: `${status} ${statusDescriptions[status] || ''}`,
+        data: labels.map(l => seriesMap[l][status] || 0),
+        fill: false,
+        tension: 0.1
+      }));
+      new Chart(document.getElementById('httpStatusChart'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          scales: {
+            x: { display: true, title: { display: true, text: '时间 (YYYY.MM.DD.HH.mm)' } },
+            y: { display: true, title: { display: true, text: '请求次数' } }
+          }
+        }
+      });
+    }
+
+    // HTTP 方法分布柱状图
+    function buildMethodBarChart(data) {
+      // 只保留以下 HTTP 方法
+      const allowedMethods = ['GET','POST','PUT','DELETE','PATCH','HEAD','OPTIONS','CONNECT','TRACE'];
+      const counts = {};
+      data.forEach(row => {
+        const m = row.method;
+        if (!m || !allowedMethods.includes(m.toUpperCase())) return;
+        counts[m] = (counts[m] || 0) + 1;
+      });
+      const labels = Object.keys(counts);
+      const values = labels.map(l => counts[l]);
+      new Chart(document.getElementById('methodChart'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: '请求数量',
+            data: values
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { display: true, title: { display: true, text: 'HTTP 方法' } },
+            y: { display: true, title: { display: true, text: '数量' } }
+          }
+        }
+      });
+    }
+
+    let completed = 0;
+    let allData = []; // 收集所有 CSV 行数据
+
+
+    //读取csv文件
+    function loadAndRender(paths) {
+      // Destroy previous charts
+      Chart.getChart('packetChart')?.destroy();
+      Chart.getChart('attackChart')?.destroy();
+      Chart.getChart('sessionChart')?.destroy();
+      Chart.getChart('ipChart')?.destroy();
+      Chart.getChart('protocolChart')?.destroy();
+      Chart.getChart('sessionTrendsChart')?.destroy();
+      Chart.getChart('tcpFlagsHeatmap')?.destroy();
+      Chart.getChart('httpStatusChart')?.destroy();
+      Chart.getChart('methodChart')?.destroy();
+      Chart.getChart('packetLengthChart')?.destroy();
+      // Reset data
+      allData = [];
+      completed = 0;
+
+      paths.forEach(path => {
+        let fileRowCount = 0;  // 新增：记录当前文件行数
+        Papa.parse(path, {
+          header: true,
+          download: true,
+          dynamicTyping: true,
+          step: function(results) {
+            allData.push(results.data);
+            fileRowCount++;
+          },
+          complete: function() {
+            console.log(`文件 ${path} 已加载 ${fileRowCount} 行数据`);
+            completed++;
+            statusBox.innerText = `已加载 ${completed}/${paths.length} 个文件`;
+            if (completed === paths.length) {
+              statusBox.innerText = `加载完成，共 ${paths.length} 个文件`;
+              console.log(`所有文件累计共 ${allData.length} 行数据`);
+            }
+          },
+          error: function(err, file, inputElem, reason) {
+            console.warn(`无法加载文件 ${file}: ${reason}`);
+            completed++;
+            statusBox.innerText = `已加载 ${completed}/${paths.length} 个文件`;
+            if (completed === paths.length) {
+              statusBox.innerText = `加载完成，共 ${paths.length} 个文件`;
+            }
+          },
+        });
+      });
+    }
+
+    function renderCharts(data) {
+      buildAttackChart(data);
+      buildPacketChart(data);
+      buildSessionChart(data);
+      buildIPBarChart(data);
+      buildProtocolChart(data);
+      buildSessionTrendsChart(data);
+      buildTCPFlagsHeatmap(data);
+      buildHTTPStatusTrend(data);
+      buildMethodBarChart(data);
+      buildPacketLengthHistogram(data);
+    }
+
+    (function initLoad() {
+      (async () => {
+        const folders = constructFolders();
+        const hours = folders.length;
+        if (hours > MAX_HOURS) {
+          console.warn(`初始化加载失败：选择范围 ${hours} 小时，超过最大 ${MAX_HOURS} 小时`);
+        } else {
+          const paths = await detectCSVPaths(folders);
+          loadAndRender(paths);
+        }
+      })();
+    })();
+
+    document.getElementById('btn-load').addEventListener('click', () => {
+      (async () => {
+        statusBox.innerText = '开始检测目录...';
+        const folders = constructFolders();
+        const hours = folders.length;
+        statusBox.innerText = `选中 ${hours} 小时目录，正在查找文件...`;
+        if (hours > MAX_HOURS) {
+          alert(`时间跨度过大，请选择不超过 ${MAX_HOURS} 小时的范围（当前 ${hours} 小时）`);
+          return;
+        } else {
+          const paths = await detectCSVPaths(folders);
+          statusBox.innerText = `发现 ${paths.length} 个文件，开始加载数据...`;
+          loadAndRender(paths);
+        }
+      })();
+    });
+
+    document.getElementById('btn-render').addEventListener('click', () => {
+      if (allData.length === 0) {
+        renderBox.innerText = '请先加载 CSV 文件';
+        return;
+      }
+      renderBox.innerText = '正在生成图形...';
+      // slight delay to allow status update
+      setTimeout(() => {
+        renderCharts(allData);
+        renderBox.innerText = '图形生成完成';
+      }, 100);
+    });
+  </script>
+</body>
+</html>
+
+

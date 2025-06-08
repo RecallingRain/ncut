@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>CSV 异常检测</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    #result { margin-top: 20px; white-space: pre-wrap; background: #f0f0f0; padding: 10px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h2>加载 CSV 文件进行异常检测</h2>
+  <input type="file" id="fileInput" accept=".csv">
+  <button onclick="uploadFile()">开始检测</button>
+  <div id="result"></div>
+
+  <script>
+    async function uploadFile() {
+      const input = document.getElementById('fileInput');
+      const file = input.files[0];
+      if (!file) {
+        alert("请先选择一个 CSV 文件。");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      document.getElementById('result').textContent = "正在上传并检测，请稍候...";
+
+      try {
+        const response = await fetch("http://localhost:8000/ml/detect", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          const anomalies = data.anomalies;
+          // 显示多少个异常
+          let resultText = `文件 ${data.filename} 检测完成，共发现 ${anomalies.length} 个异常样本。\n\n`;
+          // 逐条列出
+          anomalies.forEach((item, idx) => {
+            resultText += `\n【异常 ${idx+1}】\n`;
+            for (const key in item) {
+              resultText += `${key}: ${item[key]}\n`;
+            }
+          });
+
+          document.getElementById('result').textContent = resultText;
+        } else {
+          document.getElementById('result').textContent = `错误：${data.error}`;
+        }
+      } catch (error) {
+        document.getElementById('result').textContent = `请求失败：${error}`;
+      }
+    }
+  </script>
+</body>
+</html>

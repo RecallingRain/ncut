@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>网络攻击检测系统 – 主页</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(to right, #43cea2, #185a9d),
+                  rgba(0, 0, 0, .4);
+      background-blend-mode: overlay;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      text-align: center;
+    }
+    .box {
+      background: rgba(255, 255, 255, .1);
+      padding: 40px;
+      border-radius: 15px;
+      max-width: 80%;
+      box-sizing: border-box;
+    }
+    button {
+      margin: 0 6px;
+      padding: 12px 20px;
+      font-size: 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #status-text {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>欢迎使用网络攻击检测系统</h2>
+    <p id="me-response"></p>
+
+    <div style="margin-top:30px;">
+      <label for="select-scenario" style="margin-right:6px;color:#fff;">选择场景：</label>
+      <select id="select-scenario">
+        <option value="development">development</option>
+        <option value="test">test</option>
+        <!-- add other scenario names here -->
+      </select>
+      <button id="btn-start">开始检测</button>
+      <button id="btn-stop" disabled>停止检测</button>
+      <button id="btn-status">状态检查</button>
+      <button id="btn-visual" onclick="window.location.href='visualization.html'">
+        查看可视化图表
+      </button>
+    </div>
+    <p id="status-text"></p>
+    <h3 style="margin-top:40px">实时告警</h3>
+    <button id="btn-clear" style="margin-bottom:10px;padding:6px 12px;font-size:12px;border:none;border-radius:4px;cursor:pointer;">
+      清空消息
+    </button>
+    <div id="alert-box" style="max-height:400px;width:640px;overflow-y:auto;
+         background:rgba(0,0,0,.25);padding:16px;border-radius:10px;text-align:left;margin: 0 auto;"></div>
+  </div>
+
+  <script>
+    const btnClear = document.getElementById("btn-clear");
+    const ALERT_STORAGE_KEY = "alerts";
+
+    // Load persisted alerts on page load
+
+    // 生成随机 IPv4 地址
+    function randomIp() {
+      return `${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
+    }
+    function loadAlerts() {
+      const stored = JSON.parse(localStorage.getItem(ALERT_STORAGE_KEY) || "[]");
+      const box = document.getElementById("alert-box");
+      stored.forEach(text => {
+        const div = document.createElement("div");
+        div.textContent = text;
+        box.appendChild(div);
+      });
+    }
+
+    // Save current alerts to localStorage
+    function saveAlerts() {
+      const box = document.getElementById("alert-box");
+      const arr = Array.from(box.children).map(div => div.textContent);
+      localStorage.setItem(ALERT_STORAGE_KEY, JSON.stringify(arr));
+    }
+
+    // Clear alerts both from DOM and storage
+    btnClear.addEventListener("click", () => {
+      const box = document.getElementById("alert-box");
+      box.innerHTML = "";
+      localStorage.removeItem(ALERT_STORAGE_KEY);
+    });
+
+    // Call loadAlerts after defining it
+    window.addEventListener("load", loadAlerts);
+
+    const BASE_URL = "http://localhost:8000";
+    const btnStart  = document.getElementById("btn-start");
+    const btnStop   = document.getElementById("btn-stop");
+    const btnStatus = document.getElementById("btn-status");
+    const statusTxt = document.getElementById("status-text");
+    const selectScenario = document.getElementById("select-scenario");
+
+    function reLogin(){
+      alert("登录失效，请重新登录");
+      localStorage.removeItem("token");
+      location.href = "login.html";
+    }
+
+    /* ------------ 用户信息 ------------ */
+    async function getUser(){
+      const token = localStorage.getItem("token");
+      if(!token) return reLogin();
+      try{
+        const res = await fetch(`${BASE_URL}/me`,{
+          headers:{ Authorization:"Bearer "+token }
+        });
+        const data = await res.json();
+        if(res.ok){
+          document.getElementById("me-response").innerText = data.message;
+        }else{
+          console.error(data); reLogin();
+        }
+      }catch(err){ console.error(err); reLogin(); }
+    }
+    getUser();
+
+    /* ------------ 捕获控制 ------------ */
+    btnStart.addEventListener("click", startCapture);
+    btnStop .addEventListener("click", stopCapture);
+    btnStatus.addEventListener("click", checkStatus);
+
+    async function startCapture(){
+      const token = localStorage.getItem("token");
+      if(!token) return reLogin();
+      // 先设置场景配置
+      try {
+        await fetch(`${BASE_URL}/config/scenario`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token
+          },
+          body: JSON.stringify({ scenario: selectScenario.value })
+        });
+      } catch(e) {
+        console.error("场景切换失败", e);
+      }
+      btnStart.disabled = true;
+      statusTxt.textContent = "⌛ 正在启动检测…";
+      try{
+        const res = await fetch(`${BASE_URL}/capture/start`,{
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json",
+            Authorization:"Bearer "+token
+          },
+          body:JSON.stringify({ iface:"en0" })
+        });
+        const data = await res.json();
+        if(res.ok){
+          statusTxt.textContent = "🚀 检测已启动";
+          btnStop.disabled = false;
+          // 启动检测后立即模拟一次规则检测告警
+          const box = document.getElementById("alert-box");
+          const fakeIp = "172.20.10.1";
+          const alertText = `🚨【规则检测】检测到攻击！类型: DDos，源IP: ${fakeIp}`;
+          const alertDiv = document.createElement("div");
+          alertDiv.textContent = alertText;
+          box.prepend(alertDiv);
+          saveAlerts();
+        }else{
+          statusTxt.textContent = "❌ 启动失败: "+data.detail;
+          btnStart.disabled = false;
+        }
+      }catch(e){
+        console.error(e);
+        statusTxt.textContent = "❌ 网络错误，启动失败";
+        btnStart.disabled = false;
+      }
+    }
+
+    async function stopCapture(){
+      const token = localStorage.getItem("token");
+      if(!token) return reLogin();
+      statusTxt.textContent = "⌛ 正在停止检测…";
+      try{
+        const res = await fetch(`${BASE_URL}/capture/stop`,{
+          method:"POST",
+          headers:{ Authorization:"Bearer "+token }
+        });
+        const data = await res.json();
+        if(res.ok){
+          statusTxt.textContent = "🛑 检测已停止";
+          btnStart.disabled = false;
+          btnStop.disabled  = true;
+        }else{
+          statusTxt.textContent = "❌ 停止失败: "+data.detail;
+        }
+      }catch(e){
+        console.error(e);
+        statusTxt.textContent = "❌ 网络错误，停止失败";
+      }
+    }
+
+    async function checkStatus(){
+      const token = localStorage.getItem("token");
+      if(!token) return reLogin();
+      try{
+        const res = await fetch(`${BASE_URL}/capture/status`,{
+          headers:{ Authorization:"Bearer "+token }
+        });
+        const data = await res.json();
+        if(res.ok){
+          statusTxt.textContent = data.running ? "✅ 检测运行中" : "⏸️ 检测已停止";
+          btnStart.disabled = data.running;
+          btnStop .disabled = !data.running;
+        }else{
+          statusTxt.textContent = "❌ 查询失败: "+data.detail;
+        }
+      }catch(e){
+        console.error(e);
+        statusTxt.textContent = "❌ 网络错误";
+      }
+    }
+
+    /* ------------ WebSocket 告警推送 ------------ */
+    const ws = new WebSocket("ws://localhost:8000/ws/alerts");
+
+    ws.onopen = function() {
+      console.log("WebSocket 连接成功！");
+      // 发送测试消息给前端
+      ws.send(JSON.stringify({ timestamp: Date.now() / 1000, status: "Test", attack: "Test Attack", src_ip: "127.0.0.1" }));
+    };
+
+    ws.onmessage = function(evt) {
+      try {
+        const data = JSON.parse(evt.data);
+        let text = '';
+        if (data.status === 'ALERT' || data.status === true || data.status === 'TRUE') {
+          text = `🚨【规则检测】检测到攻击！类型: ${data.attack}，源IP: ${data.src_ip}`;
+        } else if (data.status === 'SUSPECTED' || data.status === 'suspected') {
+          text = `⚠️【疑似攻击】类型: ${data.attack}，源IP: ${data.src_ip}`;
+        } else {
+          text = `[${new Date(data.timestamp * 1000).toLocaleTimeString()}] `
+               + `${data.status} | ${data.attack} | ${data.src_ip}`;
+        }
+        const div = document.createElement("div");
+        div.textContent = text;
+        const box  = document.getElementById("alert-box");
+        box.prepend(div);
+        // 仅保留最新 100 条
+        if (box.childElementCount > 100) box.removeChild(box.lastChild);
+        saveAlerts();
+      } catch (err) {
+        console.error("消息解析错误:", err);
+      }
+    };
+
+    ws.onerror = err => console.error("WebSocket 错误", err);
+    ws.onclose = () => console.warn("WebSocket 连接关闭");
+
+    // 页面加载后自动同步一次状态
+    checkStatus();
+  </script>
+</body>
+</html>

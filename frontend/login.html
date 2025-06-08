@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>网络攻击检测系统 – 登录</title>
+  <style>
+    body{
+      margin:0;
+      font-family:Arial,"PingFang SC","Microsoft YaHei",sans-serif;
+      background:
+        linear-gradient(to right,#6a11cb,#2575fc),
+        rgba(0,0,0,.4);
+      background-blend-mode:overlay;
+      color:#fff;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      height:100vh;
+      text-align:center;
+    }
+    .box{
+      background:rgba(255,255,255,.12);
+      padding:40px 50px;
+      border-radius:15px;
+      width:320px;
+      box-sizing:border-box;
+    }
+    input,button{
+      margin-top:12px;
+      padding:12px;
+      width:100%;
+      border:none;
+      border-radius:8px;
+      font-size:14px;
+    }
+    button{cursor:pointer;}
+    #error-msg{margin-top:15px;height:20px;color:#ffb3b3;}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>用户登录</h2>
+    <input id="username" placeholder="用户名" autocomplete="username">
+    <input id="password" type="password" placeholder="密码" autocomplete="current-password">
+    <button id="btn-login">登录</button>
+    <p id="error-msg"></p>
+  </div>
+
+  <script>
+    const BASE_URL = "http://localhost:8000";   // 部署远端请修改
+    const btnLogin = document.getElementById("btn-login");
+    const errMsg   = document.getElementById("error-msg");
+
+    btnLogin.addEventListener("click", login);
+    document.addEventListener("keydown", e => e.key === "Enter" && login());
+
+    // 若已持有 token, 直接跳转
+    if (localStorage.getItem("token")) location.href = "user.html";
+
+    async function login() {
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      if (!username || !password) {
+        errMsg.textContent = "请输入用户名和密码";
+        return;
+      }
+      btnLogin.disabled = true;
+      errMsg.textContent = "⌛ 正在登录…";
+
+      try {
+        console.log("[DEBUG] POST /login", { username });
+        const response = await fetch(`${BASE_URL}/login`, {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body:JSON.stringify({ username, password })
+        });
+
+        const raw = await response.text();
+        console.log("[DEBUG] status=", response.status, "body=", raw);
+        let data = {};
+        try { data = JSON.parse(raw); } catch{}
+
+        if (response.ok) {
+          localStorage.setItem("token", data.access_token);
+          location.href = "./user.html";
+        } else {
+          errMsg.textContent = "登录失败：" + (data.detail || response.status);
+        }
+      } catch (err) {
+        console.error(err);
+        errMsg.textContent = "网络错误，请稍后再试";
+      } finally {
+        btnLogin.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
