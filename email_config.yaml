@@ -1,0 +1,15 @@
+# ─────────────────────────────────────────────────────────
+# 告警邮件配置段
+# ─────────────────────────────────────────────────────────
+email:
+  enable: true
+  smtp_server: smtp.163.com
+  smtp_port: 465
+  smtp_use_ssl: true     # 新增：465 必须走 SSL
+  smtp_timeout: 10       # 可选：连接超时时间
+  username: recallingrain@163.com
+  password: LYtPg6nnhKyHmPFY
+  from_addr: recallingrain@163.com  # 与登录账号同域更安全
+  to_addrs:
+    - recallingrain@163.com
+  level_threshold: warning

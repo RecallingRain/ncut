@@ -1,0 +1,242 @@
+# attack_config.yaml
+
+
+# 默认场景名称（development/production/high_throughput）
+default_scenario: development
+
+
+# 场景配置（请在完成各模块后，按模块名补充具体阈值）
+scenarios:
+  development:
+    ddos_detection:
+      window_size: 30
+      smoothing_alpha: 0.05
+      threshold_high_factor: 2.0
+      threshold_suspicious_factor: 1.0
+      per_ip_high_threshold: 120
+      active_ip_suspicious_threshold: 70
+      active_ip_high_threshold: 120
+    dos_detection:
+      hulk_threshold: 120
+      hulk_time_window: 1
+      goldeneye_time_window: 5
+      goldeneye_request_threshold: 80
+      slowloris_conn_window: 10
+      slowloris_syn_threshold: 20
+      slowhttp_time_window: 10
+      slowhttp_packet_size_threshold: 50
+      slowhttp_count_threshold: 15
+      dyn_divisor: 5  # 动态阈值除数
+    heartbleed_detection:
+      heartbleed_port: 443
+      pkt_size_limit: 100
+      pkt_threshold: 10
+      time_window: 10
+    bruteforce_detection:
+      window_size: 60
+      smoothing_alpha: 0.3
+      threshold_multiplier: 4
+      "FTP_MIN_THRESHOLD": 5
+      "SSH_MIN_THRESHOLD": 3
+    web_attack_detection:
+      web:
+        brute_force:
+          fail_threshold: 15
+          window_seconds: 120
+          long_window_seconds: 900
+          long_fail_threshold: 50
+          login_paths:
+            - "/login"
+            - "/api/auth"
+            - "/signin"
+          fail_status: [401, 403, 429]
+          success_status: [200, 302]
+      xss:
+        regex_list:
+          - "(?i)<script[^>]*>"
+          - "(?i)on[a-z]+\\s*=\\s*['\\\"]?"
+          - "(?i)(src|href)\\s*=\\s*['\\\"]?javascript:"
+          - "(?i)eval\\s*\\("
+          - "(?i)document\\.cookie"
+          - "(?i)<iframe[^>]*>"
+        score_threshold: 2
+        decode_rounds: 3
+      sqli:
+        regex_list:
+          - "(?i)(\\bor\\b|\\band\\b)\\s+\\d+\\s*=\\s*\\d+"
+          - "(?i)union\\s+all?\\s+select"
+          - "(?i)information_schema"
+          - "(?i)sleep\\s*\\("
+          - "(?i)benchmark\\s*\\("
+          - "(?i)load_file\\s*\\("
+          - "(?i)into\\s+outfile"
+          - "(?i)--\\s"
+          - "(?i);\\s*shutdown"
+          - "(?i)xp_cmdshell"
+        score_threshold: 2
+        decode_rounds: 3
+    infiltration_detection:
+      rare_domain_entropy: 4.0
+      rare_domain_window_minutes: 1440
+      abnormal_transfer_z: 3.5
+      lateral_scan_port_threshold: 80
+      lateral_scan_window_minutes: 5
+      score_weights:
+        rare_domain: 0.3
+        abnormal_transfer: 0.4
+        lateral_scan: 0.3
+      alert_threshold: 75
+      suspected_threshold: 45
+      min_flags_required: 2
+      cooldown_seconds: 2
+    botnet_ares_detection:
+      periodic_threshold: 12
+      interval_variance_threshold: 1.5
+      target_ip_threshold: 15
+      irc_port: 6667
+      command_patterns:
+        - '\bJOIN\b'
+        - '\bPING\b'
+        - '\bPONG\b'
+        - '\bNICK\b'
+        - '\bUSER\b'
+      suspected_cooldown: 60
+    portscan_detection:
+      window_size: 30
+      port_threshold: 60
+      failure_ratio_threshold: 0.6
+      suspected_margin:
+        port_lower: 40
+        failure_lower: 0.4
+
+
+  test:
+    #ddos
+    ddos_detection:
+      window_size: 30
+      smoothing_alpha: 0.05
+      ip_high_threshold: 1    # 原:80
+      ip_suspicious_threshold: 0    # 原:50
+      threshold_high_factor: 0.1    # 原:1.4
+      threshold_suspicious_factor: 0.0    # 原:0.5
+    #dos
+    dos_detection:
+      hulk_threshold: 1    # 原:120
+      hulk_time_window: 1
+      goldeneye_time_window: 5
+      goldeneye_request_threshold: 1    # 原:80
+      slowloris_conn_window: 10
+      slowloris_syn_threshold: 1    # 原:20
+      slowhttp_time_window: 10
+      slowhttp_packet_size_threshold: 50
+      slowhttp_count_threshold: 1    # 原:15
+    #heartbleed
+    heartbleed_detection:
+      heartbleed_port: 443
+      pkt_size_limit: 100
+      pkt_threshold: 1    # 原:10
+      time_window: 10
+    #bruteforce
+    brute_force_detection:
+      window_size: 60              # 滑动窗口长度，单位秒
+      smoothing_alpha: 0.3         # 指数平滑系数
+      threshold_multiplier: 4     # 阈值倍率（平滑值 * multiplier）
+    #webattack
+    web_attack_detection:
+      web:
+        brute_force:
+          fail_threshold: 1    # 原:15
+          window_seconds: 1    # 原:120
+          long_window_seconds: 1    # 原:900
+          long_fail_threshold: 1    # 原:50
+          login_paths:                  # 登录接口关键字
+              - "/login"
+              - "/api/auth"
+              - "/signin"
+          fail_status: [401, 403, 429]  # 视为失败的状态码
+          success_status: [200, 302]    # 视为成功的状态码
+      xss:
+        regex_list:
+          - "(?i)<script[^>]*>"
+          - "(?i)on[a-z]+\\s*=\\s*['\\\"]?"
+          - "(?i)(src|href)\\s*=\\s*['\\\"]?javascript:"
+          - "(?i)eval\\s*\\("
+          - "(?i)document\\.cookie"
+          - "(?i)<iframe[^>]*>"
+        score_threshold: 0    # 原:2
+        decode_rounds: 3
+      sqli:
+        regex_list:
+          - "(?i)(\\bor\\b|\\band\\b)\\s+\\d+\\s*=\\s*\\d+"     # 1=1
+          - "(?i)union\\s+all?\\s+select"
+          - "(?i)information_schema"
+          - "(?i)sleep\\s*\\("
+          - "(?i)benchmark\\s*\\("
+          - "(?i)load_file\\s*\\("
+          - "(?i)into\\s+outfile"
+          - "(?i)--\\s"
+          - "(?i);\\s*shutdown"
+          - "(?i)xp_cmdshell"
+        score_threshold: 0    # 原:2
+        decode_rounds: 3
+    #infiltration
+    infiltration_detection:
+      rare_domain_entropy: 0.1    # 原:4.2                       # 提高信息熵判定阈值
+      rare_domain_window_minutes: 1    # 原:1440
+      abnormal_transfer_z: 0.1    # 原:3.5                       # 提高 z-score 判断标准
+      lateral_scan_port_threshold: 1    # 原:80                # 提高横向扫描端口种类
+      lateral_scan_window_minutes: 1    # 原:5
+      score_weights:
+        rare_domain: 0.3
+        abnormal_transfer: 0.4
+        lateral_scan: 0.3
+      alert_threshold: 1    # 原:75                            # 提高攻击判定得分阈值
+      suspected_threshold: 0    # 原:45                        # 提高疑似判定得分阈值
+    #botnet_ares
+    botnet_ares_detection:
+      periodic_threshold: 1    # 原:12                  # 原8，提高为12次通信
+      interval_variance_threshold: 0.0    # 原:1.5         # 更低方差要求，更严谨
+      target_ip_threshold: 1    # 原:15                # 提高攻击确认的目标IP触达量
+      irc_port: 6667                         # IRC默认端口
+      command_patterns: # 常见的IRC僵尸网络命令关键词
+        - '\bJOIN\b'
+        - '\bPING\b'
+        - '\bPONG\b'
+        - '\bNICK\b'
+        - '\bUSER\b'
+    #portscan
+    portscan_detection:
+      window_size: 30
+      port_threshold: 1             #60
+      failure_ratio_threshold: 0      #0.6
+      suspected_margin:
+        port_lower: 1               #40
+        failure_lower: 0            #0.4
+
+
+
+module_settings:
+  - name: PortScan
+    order: 1        # 网络扫描最常见，优先检测
+  - name: FTP-Patator
+    order: 2        # FTP 爆破也较常见
+  - name: SSH-Patator
+    order: 3        # SSH 爆破
+  - name: Web-Bruteforce
+    order: 4        # Web 登录暴力
+  - name: Web-SQLi
+    order: 5        # SQL 注入
+  - name: Web-XSS
+    order: 6        # 跨站脚本
+  - name: Infiltration
+    order: 7        # 渗透活动
+  - name: Botnet-Ares
+    order: 8        # 僵尸网络 C2 通信
+  - name: DoS
+    order: 9        # 单源 DoS
+  - name: DDoS
+    order: 10       # 分布式 DoS
+  - name: Heartbleed
+    order: 11       # Heartbleed 漏洞利用最少见
+  - name: Ml-Kitsune
+    order: 12
